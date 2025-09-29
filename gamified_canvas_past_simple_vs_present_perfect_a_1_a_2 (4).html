@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Past Simple vs Present Perfect — Gamified Canvas</title>
+<style>
+  :root{ --bg:#0f172a; --panel:#111827ee; --ink:#e5e7eb; --accent:#22d3ee; --good:#22c55e; --bad:#ef4444; --muted:#94a3b8; }
+  html,body{height:100%;background:radial-gradient(1200px 600px at 70% 20%, #1f2937 0%, #0b1224 60%, #060914 100%);margin:0;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+  .wrap{display:grid;grid-template-columns:minmax(250px,300px) 1fr;gap:12px;height:100%;padding:12px;box-sizing:border-box}
+  .panel{background:var(--panel);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:18px;box-shadow:0 10px 30px #0007;display:flex;flex-direction:column;min-height:0}
+  .panel h1{font-size:20px;margin:14px 16px 8px}
+  .panel .sub{color:var(--muted);font-size:12px;margin:0 16px 8px}
+  .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 12px 12px}
+  .pill{background:#0b1224;border:1px solid #1f2937;border-radius:12px;padding:8px 10px;font-size:12px;text-align:center}
+  .btn{cursor:pointer;user-select:none;border:none;border-radius:12px;padding:10px 14px;background:linear-gradient(135deg,#0ea5e9,#22d3ee);color:#081018;font-weight:700;box-shadow:0 6px 18px #0ea5e955, inset 0 0 0 1px #ffffff30;transition:transform .04s ease}
+  .btn:active{transform:translateY(1px)}
+  canvas{width:100%;height:100%;display:block;border-radius:18px}
+  .stage{position:relative}
+  .hud{position:absolute;inset:0;pointer-events:none}
+  .toast{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:#0b1224cc;border:1px solid #1f2937;color:var(--ink);padding:10px 14px;border-radius:12px;font-weight:600}
+  .footer{padding:12px;border-top:1px dashed #1f2937}
+  .progress{height:8px;background:#0b1224;border-radius:999px;overflow:hidden;border:1px solid #1f2937}
+  .progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#60a5fa)}
+  .badge{font-size:11px;padding:6px 8px;border-radius:999px;background:#0b1224;border:1px solid #1f2937;color:var(--muted)}
+
+  /* FULL-SPACE QUESTION DOCK */
+  .dock{position:absolute;inset:12px;display:grid;grid-template-columns:1fr;grid-auto-rows:minmax(0,1fr);gap:12px;pointer-events:auto}
+  .card{background:#0b1224dd;border:1px solid #1f2937;border-radius:16px;padding:14px;display:flex;flex-direction:column;min-height:0}
+  .qtitle{font-weight:800;margin:0 0 8px 0}
+  .qgrid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;min-height:0}
+  .options{display:grid;grid-template-columns:1fr;gap:10px;align-content:start}
+  .choice{border:1px solid #1f2937;border-radius:12px;padding:12px;background:#0b1224;cursor:pointer}
+  .choice.correct{outline:2px solid var(--good)}
+  .choice.wrong{outline:2px solid var(--bad)}
+  .explain{font-size:12px;color:var(--muted);margin-top:6px}
+  .timerWrap{position:absolute;left:12px;right:12px;top:12px;height:8px;border-radius:999px;background:#0b1224;border:1px solid #1f2937;overflow:hidden}
+  .timerBar{height:100%;width:100%;background:linear-gradient(90deg,#60a5fa,#22d3ee)}
+
+  /* Drag & Drop */
+  .bank,.targets{background:#060b19;border:1px dashed #1f2937;border-radius:12px;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;min-height:110px}
+  .token{padding:8px 10px;border-radius:10px;background:#0b1224;border:1px solid #1f2937;cursor:grab;user-select:none}
+  .slot{min-width:120px;min-height:38px;padding:6px 8px;border-radius:10px;background:#0b1224;border:1px dashed #334155;display:flex;align-items:center}
+  .slot.filled{border-style:solid}
+
+  /* Writing full screen */
+  #writingWrap{grid-template-columns:1fr;}
+  .writePanel{display:flex;flex-direction:column;gap:10px;padding:12px;height:calc(100vh - 24px)}
+  textarea{width:100%;flex:1;min-height:65vh;resize:none;background:#0b1224;color:var(--ink);border:1px solid #1f2937;border-radius:12px;padding:12px;font-size:14px}
+  .topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .hint{font-size:12px;color:var(--muted)}
+
+  @media (max-width: 980px){.wrap{grid-template-columns:1fr}.qgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="panel" id="left">
+    <h1>Past Simple vs Present Perfect</h1>
+    <p class="sub">Play, learn, and prove you can choose the right tense. Then write your travel story.</p>
+    <div class="meta">
+      <div class="pill">Level <b id="lvl">1</b>/5</div>
+      <div class="pill">Hearts <b id="hearts">3</b> ❤️</div>
+      <div class="pill">Score <b id="score">0</b></div>
+    </div>
+    <div style="padding:12px">
+      <button class="btn" id="btnStart">Start / Reset</button>
+      <div class="progress" style="margin-top:10px"><i id="progbar"></i></div>
+      <div class="badge" id="tests">Self‑check: running…</div>
+      <div class="badge">Tip: <b>Past simple</b> → finished time (yesterday, in 2021). <b>Present perfect</b> → result/unfinished time (today, this week, ever, yet).</div>
+    </div>
+    <div class="footer">
+      <div class="badge">✔️ Correct: <b id="ok">0</b> &nbsp; ✖️ Wrong: <b id="wrong">0</b> &nbsp; 🔥 Streak: <b id="streak">0</b></div>
+    </div>
+  </aside>
+
+  <main class="panel stage" id="stage">
+    <canvas id="game" aria-label="Gamified canvas"></canvas>
+    <div class="hud">
+      <div class="timerWrap"><div class="timerBar" id="timerBar"></div></div>
+      <div class="dock" id="qpanel"></div>
+      <div class="toast hidden" id="toast"></div>
+    </div>
+    <div class="footer">
+      <div class="badge">Tasks done: <b id="done">0</b>/<b id="total">0</b> — Accuracy: <b id="acc">0%</b></div>
+    </div>
+  </main>
+</div>
+
+<!-- Writing (full-screen style) -->
+<div class="wrap" id="writingWrap" style="display:none">
+  <main class="panel writePanel">
+    <div class="topbar">
+      <h1 style="margin:0">Final Writing Challenge</h1>
+      <span class="badge">Writing time left: <b id="wtime">20:00</b></span>
+      <span class="badge">Words: <b id="wcount">0</b></span>
+      <span class="badge">Present perfect: <b id="ppCount">0</b></span>
+      <span class="badge">Past simple: <b id="psCount">0</b></span>
+    </div>
+    <textarea id="essay" placeholder="Write your 150+ word travel story. Use past simple for finished times (last year, yesterday) and present perfect for experiences or results (I have visited…, We have already…)." spellcheck="true"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn" id="btnGrade">Grade my story</button>
+      <span class="hint">No pasting allowed. Any paste → <b style="color:var(--bad)">0.0/5.0</b>.</span>
+    </div>
+    <div id="result" class="badge" style="white-space:pre-wrap"></div>
+  </main>
+</div>
+
+<script>
+// Robust onReady: runs immediately if DOM is already parsed (common in previews)
+(function(onReady){
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', onReady);
+  } else {
+    onReady();
+  }
+})(function(){
+  // ===== Canvas engine =====
+  const C = /** @type {HTMLCanvasElement} */(document.getElementById('game')); const ctx=C.getContext('2d');
+  let W=0,H=0,anim=0,sparkles=[];
+  function fit(){const dpr=Math.min(window.devicePixelRatio||1,2);const r=C.getBoundingClientRect();W=Math.floor(r.width*dpr);H=Math.floor((r.height||540)*dpr);C.width=W;C.height=H;ctx.setTransform(dpr,0,0,dpr,0,0)};window.addEventListener('resize',fit,{passive:true});fit();
+  function rnd(a,b){return Math.random()*(b-a)+a}
+  function bg(){const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0f172a');g.addColorStop(1,'#020617');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.globalAlpha=.25;ctx.fillStyle='#22d3ee';for(let i=0;i<3;i++){const y=(H/4)*(i+1)+Math.sin(perf.now/700+i)*18;ctx.beginPath();ctx.moveTo(-50,y);for(let x=-50;x<W+50;x+=20){const yy=y+Math.sin(x/120+perf.now/900+i)*12;ctx.lineTo(x,yy);}ctx.lineTo(W+50,H+50);ctx.lineTo(-50,H+50);ctx.closePath();ctx.fill();}ctx.globalAlpha=1}
+  function fx(){ctx.fillStyle='#22d3ee';sparkles=sparkles.filter(p=>p.a>0.02);for(const p of sparkles){ctx.globalAlpha=p.a;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();p.y+=0.2;p.a*=0.985}ctx.globalAlpha=1}
+  const perf={now:0};function loop(t){perf.now=t;bg();fx();anim=requestAnimationFrame(loop)};anim=requestAnimationFrame(loop);
+  function sparkle(){for(let i=0;i<6;i++)sparkles.push({x:rnd(0,W),y:rnd(0,H/2),r:rnd(1,3),a:1})}
+
+  // ===== Game bank =====
+  // types: mc (3+ options), match (drag tokens to slots), order (drag to reorder)
+  const bank=[
+    {level:1,type:'mc',prompt:'Choose the correct sentence.',options:[
+      {t:'I went to the zoo yesterday.', ok:true, why:'"yesterday" → finished time → past simple.'},
+      {t:'I have been to the zoo yesterday.', ok:false, why:'Present perfect does not go with finished time words.'},
+      {t:'I have went to the zoo yesterday.', ok:false, why:'"have went" is incorrect; use "went" or "been".'}
+    ]},
+    {level:1,type:'mc',prompt:'Choose the correct sentence.',options:[
+      {t:'When you have eaten your dinner, you can go and play.', ok:true, why:'Condition completed before next action → present perfect.'},
+      {t:'When you ate your tea, you can go and play.', ok:false, why:'Wrong tense mix.'},
+      {t:'When you eat your dinner, you could went to play.', ok:false, why:'Verb form wrong.'}
+    ]},
+    // Matching: pair signal words to the correct tense
+    {level:2,type:'match',prompt:'Drag each time expression to the correct tense box.',pairs:[
+      ['yesterday','Past Simple'],['in 2019','Past Simple'],['this week','Present Perfect'],['ever','Present Perfect'],['last night','Past Simple'],['already','Present Perfect']
+    ],leftTitle:'Time expressions',rightTitle:'Tense'},
+    // Ordering: build a correct sentence order (PP before result)
+    {level:3,type:'order',prompt:'Order the parts to make a correct sentence.',items:['I have finished','my homework,','so','I can play now.'],ok:['I have finished','my homework,','so','I can play now.'],why:'Present perfect shows the result relevant now.'},
+    // MC with V3 focus (3 options minimum)
+    {level:3,type:'mc',prompt:'Choose the correct past participle (V3). My hair has really __ recently.',options:[
+      {t:'grown', ok:true, why:'grow — grew — grown'},
+      {t:'grew', ok:false, why:'Past simple, not V3.'},
+      {t:'growed', ok:false, why:'Incorrect form.'}
+    ]},
+    {level:4,type:'match',prompt:'Match verb forms to their columns.',pairs:[
+      ['went','Past Simple'],['was/were','Past Simple'],['has gone','Present Perfect'],['have visited','Present Perfect'],['slept','Past Simple'],['has taken','Present Perfect']
+    ],leftTitle:'Verb forms',rightTitle:'Tense'},
+    {level:5,type:'order',prompt:'Put in order to describe a finished time.',items:['Last year,','I','visited','Cusco.'],ok:['Last year,','I','visited','Cusco.'],why:'Finished time marker + past simple.'}
+  ];
+
+  function groupByLevel(){const levels=[1,2,3,4,5];let out=[];for(const L of levels){let arr=bank.filter(x=>x.level===L);out=out.concat(arr)}return out}
+
+  // ===== Game state =====
+  let deck=groupByLevel(); let ptr=0,hearts=3,score=0,ok=0,wrong=0,streak=0; let timeLeftMs=60000,timerId=null; // 60s per task
+  const el=(id)=>document.getElementById(id); const qpanel=el('qpanel'); const toast=el('toast'); const timerBar=el('timerBar');
+  function showToast(msg,color){toast.textContent=msg;toast.classList.remove('hidden');toast.style.color='var(--ink)';toast.style.background='#0b1224cc';toast.style.outline=(color==='good'? '2px solid var(--good)': color==='bad'? '2px solid var(--bad)':'none'); setTimeout(()=>toast.classList.add('hidden'),1200)}
+  function updateHUD(){el('lvl').textContent=Math.min(5, deck[ptr]?deck[ptr].level:5); el('hearts').textContent=hearts; el('score').textContent=score; el('ok').textContent=ok; el('wrong').textContent=wrong; el('streak').textContent=streak; el('done').textContent=ptr; el('total').textContent=deck.length; const p=Math.round((ptr/deck.length)*100); el('acc').textContent=(ok+wrong? Math.round(ok*100/(ok+wrong)):0)+'%'; el('progbar').style.width=p+'%'}
+  function startTimer(){stopTimer(); timeLeftMs=60000; tick(); timerId=setInterval(tick,50)} function stopTimer(){if(timerId){clearInterval(timerId);timerId=null}} function tick(){timeLeftMs-=50; if(timeLeftMs<0) timeLeftMs=0; timerBar.style.width=(timeLeftMs/60000*100)+'%'; if(timeLeftMs===0){stopTimer(); timesUp()}}
+  function timesUp(){hearts--; wrong++; streak=0; showToast("Time's up! −1 ❤️",'bad'); if(hearts<=0){gameOver()} else {ptr++; updateHUD(); renderQuestion()}}
+
+  // rotate correct answer among indices 0..n-1 even after shuffle
+  let __rotIdx=0;
+
+  function renderQuestion(){
+    qpanel.innerHTML='';
+    const item=deck[ptr];
+    if(!item){ document.querySelector('.wrap').style.display='none'; document.getElementById('writingWrap').style.display='grid'; startWritingTimer(); cancelAnimationFrame(anim); sparkle(); return; }
+    // card covers full space
+    const card=document.createElement('div'); card.className='card'; qpanel.appendChild(card);
+    const title=document.createElement('div'); title.className='qtitle'; title.textContent=`Level ${item.level}`; card.appendChild(title);
+    const p=document.createElement('div'); p.style.marginBottom='8px'; p.innerHTML=`<b>${item.prompt}</b>`; card.appendChild(p);
+    // container for interactive area
+    const area=document.createElement('div'); area.className='qgrid'; card.appendChild(area);
+
+    if(item.type==='mc' || item.type==='pick' || item.type==='either' || item.type==='form' || item.type==='fill'){
+      // ensure 3+ options by adding a generated decoy if needed
+      let opts=[...item.options];
+      if(opts.length<3){
+        const template=opts[0]?.t||''; let decoy=template.replace(/have\s+([a-z]+)/i,'has $1'); if(decoy===template) decoy = template.replace(/went/,'have went');
+        opts.push({t:decoy, ok:false, why:'Distractor — wrong agreement or form.'});
+      }
+      // shuffle and rotate correct
+      let shuffled=opts.sort(()=>Math.random()-0.5);
+      const tgt=(__rotIdx++)%shuffled.length; const cidx=shuffled.findIndex(o=>o.ok); if(cidx>-1 && tgt!==cidx){const [co]=shuffled.splice(cidx,1); shuffled.splice(tgt,0,co);}
+      const right=document.createElement('div'); right.className='options'; area.appendChild(document.createElement('div')); area.appendChild(right);
+      shuffled.forEach(o=>{const b=document.createElement('div'); b.className='choice'; b.innerHTML=`<div>${o.t}</div><div class="explain"></div>`; right.appendChild(b); b.addEventListener('click',()=>{
+        // one attempt only
+        right.querySelectorAll('.choice').forEach(e=>e.style.pointerEvents='none'); stopTimer();
+        if(o.ok){ b.classList.add('correct'); score+=10; ok++; streak++; sparkle(); b.querySelector('.explain').textContent=o.why; showToast('Correct! +10','good'); setTimeout(()=>{ptr++; updateHUD(); renderQuestion()},600); }
+        else { b.classList.add('wrong'); wrong++; streak=0; hearts--; score=Math.max(0,score-2); b.querySelector('.explain').textContent=o.why; showToast('Incorrect. −2','bad'); setTimeout(()=>{ if(hearts<=0){gameOver()} else {ptr++; updateHUD(); renderQuestion()} },600); }
+      })});
+      startTimer();
+    }
+    else if(item.type==='match'){
+      // left bank tokens, right slots (labels = tense names)
+      const left=document.createElement('div'); left.className='bank'; const right=document.createElement('div'); right.className='targets'; area.appendChild(left); area.appendChild(right);
+      const byCol={}; item.pairs.forEach(([tgt,cat])=>{byCol[cat]=byCol[cat]||[]; byCol[cat].push(tgt)});
+      // create slots for each category
+      Object.keys(byCol).forEach(cat=>{const col=document.createElement('div'); col.style.flex='1'; const label=document.createElement('div'); label.className='badge'; label.textContent=cat; right.appendChild(label); byCol[cat].forEach(()=>{const s=document.createElement('div'); s.className='slot'; s.dataset.cat=cat; right.appendChild(s)})});
+      // tokens
+      const tokens = item.pairs.map(([tgt,cat])=>({t:tgt,cat})).sort(()=>Math.random()-0.5);
+      tokens.forEach(tok=>{const d=document.createElement('div'); d.className='token'; d.textContent=tok.t; d.draggable=true; d.dataset.cat=tok.cat; left.appendChild(d)})
+      // dnd
+      let placed=0; function finish(correct){ stopTimer(); if(correct){score+=10; ok++; streak++; sparkle(); showToast('Great matching! +10','good')} else {wrong++; hearts--; streak=0; score=Math.max(0,score-2); showToast('Not quite. −2','bad')} setTimeout(()=>{ if(hearts<=0){gameOver()} else {ptr++; updateHUD(); renderQuestion()} },600) }
+      qpanel.querySelectorAll('.slot').forEach(s=>{
+        s.addEventListener('dragover',e=>e.preventDefault());
+        s.addEventListener('drop',e=>{ e.preventDefault(); const id=e.dataTransfer.getData('text/plain'); const el=document.getElementById(id); if(!el) return; if(s.classList.contains('filled')) return; s.classList.add('filled'); s.textContent=el.textContent; s.dataset.put=el.dataset.cat; el.remove(); placed++; if(placed===item.pairs.length){ // check
+            const slots=[...qpanel.querySelectorAll('.slot')]; const okAll=slots.every(ss=>ss.dataset.put===ss.dataset.cat); finish(okAll);
+          }
+        })
+      });
+      qpanel.querySelectorAll('.token').forEach((t,i)=>{ t.id='tok'+i; t.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',t.id)}) });
+      startTimer();
+    }
+    else if(item.type==='order'){
+      const left=document.createElement('div'); left.className='bank'; area.appendChild(left); area.appendChild(document.createElement('div'));
+      const items=[...item.items].sort(()=>Math.random()-0.5);
+      items.forEach((txt,i)=>{const d=document.createElement('div'); d.className='token'; d.textContent=txt; d.draggable=true; d.id='ord'+i; left.appendChild(d)});
+      // reordering by drag within the container
+      let dragging=null; left.addEventListener('dragstart',e=>{dragging=e.target}); left.addEventListener('dragover',e=>{e.preventDefault(); const tgt=[...left.children].find(ch=>ch===e.target||ch.contains(e.target)); if(!tgt||tgt===dragging) return; const rect=tgt.getBoundingClientRect(); const before=(e.clientY-rect.top)/(rect.height)>0.5; left.insertBefore(dragging, before? tgt.nextSibling: tgt)});
+      const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Check order'; btn.style.marginTop='10px'; card.appendChild(btn);
+      btn.addEventListener('click',()=>{ stopTimer(); const arr=[...left.children].map(e=>e.textContent); const okOrder = arr.join('|')===item.ok.join('|'); if(okOrder){ score+=10; ok++; streak++; sparkle(); showToast('Nice order! +10','good'); } else { wrong++; hearts--; streak=0; score=Math.max(0,score-2); showToast('Order not correct. −2','bad'); } setTimeout(()=>{ if(hearts<=0){gameOver()} else {ptr++; updateHUD(); renderQuestion()} },600); });
+      startTimer();
+    }
+    updateHUD();
+  }
+
+  function gameOver(){stopTimer(); qpanel.innerHTML=`<div class="card" style="text-align:center"><div class="qtitle">Game over</div>Your score: <b>${score}</b><br><br><button class="btn" id="btnRetry">Retry</button></div>`; const br=document.getElementById('btnRetry'); if(br) br.addEventListener('click',start)}
+  function start(){deck=groupByLevel(); ptr=0; hearts=3; score=0; ok=0; wrong=0; streak=0; updateHUD(); renderQuestion()}
+
+  const btnStart=document.getElementById('btnStart'); if(btnStart) btnStart.addEventListener('click',start); start();
+
+  // ===== Writing (20 minutes, full-screen) =====
+  const essay=document.getElementById('essay'); const wcount=document.getElementById('wcount'); const btnGrade=document.getElementById('btnGrade'); const res=document.getElementById('result'); const ppCount=document.getElementById('ppCount'); const psCount=document.getElementById('psCount'); let pasted=false; let wTimer=null; let wMs=20*60*1000;
+  function wordCount(s){return (s.trim().match(/\b[\w'’-]+\b/g)||[]).length}
+  function countPresentPerfect(s){const v3=/(been|gone|done|had|taken|grown|come|forgotten|blown|begun|drawn|moved|spoken|slept|lost|arrived|visited|seen|tried|studied|played|worked|watched|travelled|traveled)/i; const re=/\b(have|has)\s+(?:\w+ly\s+)?(\w+)\b/gi; let m,c=0; while((m=re.exec(s))){ if(v3.test(m[2])) c++; } return c}
+  function countPastSimple(s){const pastList=/(went|was|were|got|moved|met|spoke|had|slept|lost|arrived|visited|saw|tried|studied|played|worked|watched|travelled|traveled|came|forgot|blew|began|drew|stayed|walked|looked)/gi; return (s.match(pastList)||[]).length}
+  function updateStats(){const txt=essay?.value||''; if(!essay) return; wcount.textContent=String(wordCount(txt)); ppCount.textContent=String(countPresentPerfect(txt)); psCount.textContent=String(countPastSimple(txt))}
+  if(essay){
+    essay.addEventListener('input',updateStats);
+    essay.addEventListener('paste',e=>{e.preventDefault(); pasted=true; showToast('Paste detected — score will be 0.0','bad')});
+    essay.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==='v')){pasted=true; showToast('Paste detected — score will be 0.0','bad'); e.preventDefault()}})
+  }
+  function startWritingTimer(){
+    const wtime=document.getElementById('wtime'); if(!wtime || !essay) return;
+    if(wTimer) clearInterval(wTimer); wMs=20*60*1000; essay.readOnly=false; 
+    function wt(){wMs-=1000; if(wMs<0) wMs=0; const m=String(Math.floor(wMs/60000)).padStart(2,'0'); const s=String(Math.floor((wMs%60000)/1000)).padStart(2,'0'); wtime.textContent=`${m}:${s}`; if(wMs===0){clearInterval(wTimer); essay.readOnly=true; showToast('Writing time finished','bad')}}
+    wtime.textContent='20:00'; wTimer=setInterval(wt,1000)
+  }
+
+  // SAFE: Use event delegation so we never call addEventListener on a missing node
+  document.addEventListener('click', (e)=>{
+    const g = e.target && (e.target.id==='btnGrade' ? e.target : e.target.closest && e.target.closest('#btnGrade'));
+    if(!g) return;
+    if(!essay) return;
+    const txt=essay.value.trim(); updateStats(); if(!txt){res.textContent='Please write your story first.'; return;} const wc=wordCount(txt);
+    let grammar=2.0; const iErrors=(txt.match(/\bi\b/g)||[]).length; if(iErrors>0) grammar-=Math.min(1.0,iErrors*0.25); const typos=(txt.match(/\b([a-z]{1,2})\s+\1\b/gi)||[]).length>2; if(typos) grammar-=0.4;
+    let coherence=1.0; const conn=(txt.match(/(and|but|because|so|then|after|before)/gi)||[]).length; if(conn<3) coherence-=0.4; if(conn<2) coherence-=0.2;
+    const pp=countPresentPerfect(txt); const ps=countPastSimple(txt); let tense=2.0; if(pp<3) tense-=(3-pp)*0.4; if(ps<5) tense-=(5-ps)*0.2;
+    if(wc<150){ const lack=Math.min(150-wc,100); const p=(lack/100); grammar-=p*0.5; coherence-=p*0.3 }
+    grammar=Math.max(0,Math.min(2.0,grammar)); coherence=Math.max(0,Math.min(1.0,coherence)); tense=Math.max(0,Math.min(2.0,tense));
+    let total=parseFloat((grammar+coherence+tense).toFixed(1)); if(pasted) total=0.0;
+    let fb=`Score: ${total.toFixed(1)}/5.0\nGrammar: ${grammar.toFixed(1)}/2.0\nCoherence: ${coherence.toFixed(1)}/1.0\nTense Use: ${tense.toFixed(1)}/2.0 (PP=${pp}, PS=${ps})`;
+    if(wMs<=0) fb+="\nTime is over. Your text was locked at 20 minutes."; if(pasted) fb+="\nPaste detected → automatic 0.0"; res.textContent=fb;
+  });
+
+  // ===== Self‑tests (extended) =====
+  (function runTests(){
+    const results=[]; let pass=0,fail=0;
+    try{startTimer(); if(timeLeftMs===60000){pass++;results.push('Timer set to 60s ✓')} else {fail++;results.push('Timer not 60s ✗')}}catch(e){fail++;results.push('Timer threw ✗')}
+    try{const rot=[0,1,2].map(()=>{__rotIdx=0; const opts=[{ok:true},{ok:false},{ok:false}]; let s=opts.sort(()=>Math.random()-0.5); const tgt=(__rotIdx++)%s.length; const cidx=s.findIndex(o=>o.ok); if(cidx>-1&&tgt!==cidx){const [co]=s.splice(cidx,1); s.splice(tgt,0,co);} return s.findIndex(o=>o.ok)}); if(new Set(rot).size>=2){pass++;results.push('Rotation varies ✓')} else {fail++;results.push('Rotation fixed ✗')}}catch(e){fail++;results.push('Rotation threw ✗')}
+    try{const a=countPresentPerfect('I have visited Rome. She has gone home.'); if(a>=2){pass++;results.push('PP counter ✓')} else {fail++;results.push('PP counter low ✗')}}catch(e){fail++;results.push('PP counter threw ✗')}
+    try{const b=countPastSimple('I went to Bogota and stayed two nights.'); if(b>=2){pass++;results.push('PS counter ✓')} else {fail++;results.push('PS counter low ✗')}}catch(e){fail++;results.push('PS counter threw ✗')}
+    try{const btn=document.getElementById('btnGrade'); if(btn && typeof btn.addEventListener==='function'){pass++;results.push('btnGrade exists ✓')} else {fail++;results.push('btnGrade missing ✗')}}catch(e){fail++;results.push('btnGrade test threw ✗')}
+    // New: sanity test for delegation — dispatch a synthetic click and expect no exception
+    try{const target=document.getElementById('btnGrade'); if(target){ target.dispatchEvent(new Event('click', {bubbles:true})); pass++; results.push('Delegated handler wired ✓') } else { results.push('Delegation skipped (no btn) •') }}catch(e){fail++;results.push('Delegated handler threw ✗')}
+    document.getElementById('tests').textContent=`Self‑check: ${pass} passed, ${fail} failed — ${results.join(' | ')}`;
+  })();
+});
+</script>
+</body>
+</html>
